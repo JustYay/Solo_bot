@@ -18,6 +18,8 @@ from rich.table import Table
 
 from config import BOT_SERVICE
 
+console = Console()
+
 
 def ensure_utf8_locale():
     try:
@@ -159,7 +161,7 @@ def fix_permissions():
 
         launcher_path = os.path.join(PROJECT_DIR, "cli_launcher.py")
         if os.path.exists(launcher_path):
-            console.log("[blue]Установка флага +x для cli_launcher.py...[/blue]")
+            console.log("[blue]Установка флага +x для cli_launcher.py...")
             subprocess.run(["chmod", "+x", launcher_path], check=True)
 
         console.print(f"[green]Все права восстановлены для пользователя [bold]{user}[/bold][/green]")
@@ -256,12 +258,11 @@ def install_dependencies():
                 shutil.rmtree("venv")
                 console.print("[yellow]Удалён старый venv[/yellow]")
 
-            subprocess.run(f"{python312_path} -m venv venv", shell=True, check=True)
+            subprocess.run([python312_path, "-m", "venv", "venv"], check=True)
 
             progress.update(task_id, description="Установка зависимостей...")
             subprocess.run(
-                "bash -c 'source venv/bin/activate && pip install -r requirements.txt'",
-                shell=True,
+                [os.path.join(PROJECT_DIR, "venv", "bin", "pip"), "install", "-r", "requirements.txt"],
                 check=True,
             )
 
@@ -276,7 +277,7 @@ def restart_service():
     if is_service_exists(SERVICE_NAME):
         console.print("[blue]🚀 Перезапуск службы...[/blue]")
         with console.status("[bold yellow]Перезапуск...[/bold yellow]"):
-            subprocess.run(f"sudo systemctl restart {SERVICE_NAME}", shell=True)
+            subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
     else:
         console.print(f"[red]❌ Служба {SERVICE_NAME} не найдена.[/red]")
 
@@ -335,21 +336,23 @@ def update_from_beta():
     console.print("[cyan]Клонируем временный репозиторий...[/cyan]")
     subprocess.run(["rm", "-rf", TEMP_DIR])
 
-    if os.system(f"git clone --depth=1000000 -b dev {GITHUB_REPO} {TEMP_DIR}") != 0:
+    try:
+        subprocess.run(["git", "clone", "--depth=1000000", "-b", "dev", GITHUB_REPO, TEMP_DIR], check=True)
+    except subprocess.CalledProcessError:
         console.print("[red]❌ Ошибка при клонировании. Обновление отменено.[/red]")
         return
 
     subprocess.run(["sudo", "rm", "-rf", os.path.join(PROJECT_DIR, "venv")])
     clean_project_dir_safe(update_buttons=update_buttons, update_img=update_img)
 
-    exclude_options = ""
+    exclude_args = []
     if not update_img:
-        exclude_options += "--exclude=img "
+        exclude_args += ["--exclude=img"]
     if not update_buttons:
-        exclude_options += "--exclude=handlers/buttons.py "
-    exclude_options += "--exclude=modules "
+        exclude_args += ["--exclude=handlers/buttons.py"]
+    exclude_args += ["--exclude=modules"]
 
-    subprocess.run(f"rsync -a {exclude_options} {TEMP_DIR}/ {PROJECT_DIR}/", shell=True)
+    subprocess.run(["rsync", "-a", *exclude_args, f"{TEMP_DIR}/", f"{PROJECT_DIR}/"], check=True)
 
     modules_path = os.path.join(PROJECT_DIR, "modules")
     if not os.path.exists(modules_path):
@@ -411,8 +414,7 @@ def update_from_release():
         console.print(f"[cyan]Клонируем релиз {tag_name} во временную папку...[/cyan]")
         subprocess.run(["rm", "-rf", TEMP_DIR])
         subprocess.run(
-            f"git clone --branch {tag_name} {GITHUB_REPO} {TEMP_DIR}",
-            shell=True,
+            ["git", "clone", "--branch", tag_name, GITHUB_REPO, TEMP_DIR],
             check=True,
         )
 
@@ -420,14 +422,14 @@ def update_from_release():
         subprocess.run(["sudo", "rm", "-rf", os.path.join(PROJECT_DIR, "venv")])
         clean_project_dir_safe(update_buttons=update_buttons, update_img=update_img)
 
-        exclude_options = ""
+        exclude_args = []
         if not update_img:
-            exclude_options += "--exclude=img "
+            exclude_args += ["--exclude=img"]
         if not update_buttons:
-            exclude_options += "--exclude=handlers/buttons.py "
-        exclude_options += "--exclude=modules "
+            exclude_args += ["--exclude=handlers/buttons.py"]
+        exclude_args += ["--exclude=modules"]
 
-        subprocess.run(f"rsync -a {exclude_options} {TEMP_DIR}/ {PROJECT_DIR}/", shell=True)
+        subprocess.run(["rsync", "-a", *exclude_args, f"{TEMP_DIR}/", f"{PROJECT_DIR}/"], check=True)
 
         modules_path = os.path.join(PROJECT_DIR, "modules")
         if not os.path.exists(modules_path):

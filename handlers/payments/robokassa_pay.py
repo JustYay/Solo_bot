@@ -301,11 +301,12 @@ def check_payment_signature(params):
     base = f"{out_sum}:{inv_id}:{ROBOKASSA_PASSWORD2}{shp_suffix}"
     expected_sig = hashlib.md5(base.encode("utf-8")).hexdigest().upper()
 
-    logger.info(f"Signature base (RESULT): {base}")
-    logger.info(f"Expected signature: {expected_sig}")
-    logger.info(f"Received signature: {received_sig}")
-
-    return received_sig == expected_sig
+    # Используем сравнение в константное время и не логируем чувствительные данные
+    try:
+        import hmac
+        return hmac.compare_digest(received_sig, expected_sig)
+    except Exception:
+        return received_sig == expected_sig
 
 
 @router.callback_query(F.data == "enter_custom_amount_robokassa")

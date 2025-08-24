@@ -79,7 +79,7 @@ def _create_database_backup() -> tuple[str | None, Exception | None]:
                 "-h",
                 PG_HOST,
                 "-p",
-                PG_PORT,
+                str(PG_PORT),
                 "-F",
                 "c",
                 "-f",
@@ -87,7 +87,8 @@ def _create_database_backup() -> tuple[str | None, Exception | None]:
                 DB_NAME,
             ],
             check=True,
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
         )
         logger.info(f"Бэкап базы данных создан: {filename}")
